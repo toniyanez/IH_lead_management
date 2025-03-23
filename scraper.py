@@ -3,21 +3,35 @@ from bs4 import BeautifulSoup
 from newspaper import Article
 from openai import OpenAI
 
-# ✅ Hardcoded OpenAI project key (only for private/local use!)
+# ----------------------------------------
+# ✅ HARDCODED OpenAI Project Credentials
+# Only use for private or local development
+# ----------------------------------------
+API_KEY = "sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx0j4A"
+PROJECT_ID = "proj_7EqGQg2RKl5FeRaNsYxzC2w"
+
+# Initialize OpenAI client with project-aware setup
 client = OpenAI(
-    api_key="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",  # Replace with your key
-    project="proj_7EqGQg2RKl5FeRaNsYxzC2wI"                  # Replace with your project ID
+    api_key=API_KEY,
+    project=PROJECT_ID,
 )
+
+# ----------------------------------------
+# 🌐 AI-POWERED WEBSITE ANALYZER FUNCTION
+# ----------------------------------------
 
 def extract_info_from_url(url):
     try:
-        # Extract visible text from homepage using newspaper3k
+        # Step 1: Extract readable text content from URL
         article = Article(url)
         article.download()
         article.parse()
-        text = article.text
+        text = article.text.strip()
 
-        # GPT prompt
+        if not text:
+            return f"❌ No readable text found at {url}"
+
+        # Step 2: Build GPT prompt for structured output
         prompt = f"""
         You are an assistant analyzing startup websites for potential B2B services.
         Given the homepage text below, extract:
@@ -26,9 +40,9 @@ def extract_info_from_url(url):
         - Summary of their product or solution
         - Contact email (if mentioned)
         - Likely growth phase (choose from: pre-seed, seed, series A, series B, series C, consolidation, expansion)
-        - Score from 0 to 100, estimating fit for InnHealthium (which offers regulatory, funding, AI, and go-to-market support in MedTech, IVD, digital health)
+        - Score from 0 to 100, estimating fit for InnHealthium (we help with regulatory, funding, AI, GTM for MedTech, IVD, and diagnostics)
 
-        Respond in this format:
+        Respond in this exact format (no commentary):
 
         Company: ...
         Summary: ...
@@ -40,9 +54,11 @@ def extract_info_from_url(url):
         {text}
         """
 
+        # Step 3: Send to GPT
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5
         )
 
         return response.choices[0].message.content
@@ -50,4 +66,25 @@ def extract_info_from_url(url):
     except Exception as e:
         return f"❌ Error extracting info from {url}:\n\n{str(e)}"
 
+# ----------------------------------------
+# 🔧 OPTIONAL BASIC HTML SCRAPER (fallback)
+# Only use for very structured HTML pages
+# ----------------------------------------
 
+def scrape_leads_from_url(url):
+    try:
+        r = requests.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        companies = []
+
+        for tag in soup.find_all("div", class_="company"):
+            name = tag.find("h2").text
+            website = tag.find("a")['href']
+            email = tag.find("span", class_="email").text
+            summary = tag.find("p").text
+            companies.append((name, website, email, "Unknown", summary, "seed", 50, "", ""))
+
+        return companies
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        return []
