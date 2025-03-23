@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+
 from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
 from lead_utils import calculate_score
 from scraper import extract_info_from_url
 
-# Initialize database
-init_db()
-
-# Set page configuration with InnHealthium branding
+# Set up page
 st.set_page_config(
     page_title="LeadNavigator by InnHealthium",
     page_icon="🧬",
@@ -16,29 +14,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Add InnHealthium logo and title
-st.image("innhealthium_logo.png", width=200)
-st.title("LeadNavigator CRM")
-st.caption("Empowering MedTech innovators with AI-driven lead management.")
+init_db()
 
-# Sidebar menu
+# Branding & title
+st.image("innhealthium_logo.png", width=200)
+st.title("🚀 LeadNavigator CRM")
+st.caption("Empowering MedTech innovation with AI-powered lead management.")
+
+# Sidebar
 st.sidebar.image("innhealthium_logo.png", width=150)
-menu = ["Upload Leads", "Analyze Website (AI)", "View & Edit Leads"]
+menu = ["📤 Upload Leads", "🤖 Paste Website (AI)", "📝 Edit Leads"]
 choice = st.sidebar.radio("Navigate", menu)
 
-# Define primary color for buttons and accents
-primary_color = "#1A73E8"  # InnHealthium blue
+# Upload Leads
+if choice == "📤 Upload Leads":
+    st.subheader("📁 Upload Excel Leads")
+    st.markdown("Upload your `.xlsx` file with columns like `company`, `summary`, `email`, etc.")
 
-# Upload Leads Section
-if choice == "Upload Leads":
-    st.subheader("📁 Upload Leads via Excel")
-    st.markdown("Upload your `.xlsx` file containing lead information.")
-
-    file = st.file_uploader("Choose an Excel file", type=["xlsx"])
+    file = st.file_uploader("Upload Excel File", type=["xlsx"])
     if file:
         df = pd.read_excel(file)
-        st.success("File loaded successfully!")
-
         for _, row in df.iterrows():
             score = calculate_score(row['summary'], row['growth_phase'])
             data = (
@@ -46,19 +41,17 @@ if choice == "Upload Leads":
                 row['summary'], row['growth_phase'], score, "", ""
             )
             insert_lead(data)
-
         st.balloons()
-        st.success("Leads imported and scored!")
+        st.success("✅ Leads uploaded and scored!")
 
-# Analyze Website (AI) Section
-elif choice == "Analyze Website (AI)":
-    st.subheader("🌐 Analyze a Startup Website")
-    st.markdown("Let AI extract key information and score the lead.")
+# Paste URL (AI)
+elif choice == "🤖 Paste Website (AI)":
+    st.subheader("🌐 Analyze Startup Website via AI")
+    st.markdown("Let AI extract company info & score it.")
 
-    company_url = st.text_input("Enter the company's website URL")
-
-    if st.button("Analyze", key="analyze_button"):
-        with st.spinner("Analyzing the website..."):
+    company_url = st.text_input("Paste a startup homepage URL")
+    if st.button("🧠 Analyze with GPT"):
+        with st.spinner("AI is reading the site..."):
             result = extract_info_from_url(company_url)
 
         st.code(result)
@@ -81,15 +74,13 @@ elif choice == "Analyze Website (AI)":
                 "",
                 ""
             ))
-            st.success(f"{parsed.get('company')} added to your leads!")
+            st.success(f"🎯 {parsed.get('company')} added to your leads!")
         else:
-            st.warning("Could not parse the AI response.")
+            st.warning("🤔 GPT response couldn't be parsed properly.")
 
-# View & Edit Leads Section
-elif choice == "View & Edit Leads":
-    st.subheader("🛠 View & Edit Leads")
-    st.markdown("Edit your leads directly in the table below.")
-
+# View & Edit
+elif choice == "📝 Edit Leads":
+    st.subheader("🛠 Manage Your Lead Database")
     df = fetch_all_leads_df()
 
     gb = GridOptionsBuilder.from_dataframe(df)
@@ -103,17 +94,16 @@ elif choice == "View & Edit Leads":
         gridOptions=grid_options,
         update_mode=GridUpdateMode.MANUAL,
         editable=True,
+        theme="material",
         height=600,
-        theme="blue",  # Matching InnHealthium's color scheme
         key="editable_grid"
     )
 
     updated_df = grid_response["data"]
-    if st.button("Save Changes", key="save_button"):
+    if st.button("💾 Save Changes"):
         update_leads_bulk(updated_df)
-        st.success("Changes saved successfully!")
+        st.success("✅ Changes saved!")
 
 # Footer
 st.markdown("---")
-st.caption("© 2025 InnHealthium | Transforming healthcare innovation.")
-
+st.caption("Made with ❤️ by InnHealthium | Accelerating MedTech, IVD & Diagnostics innovation 🚀")
