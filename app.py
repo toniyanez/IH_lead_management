@@ -60,3 +60,38 @@ elif choice == "View & Edit Leads":
     if st.button("💾 Save Changes"):
         update_leads_bulk(updated_df)
         st.success("✅ Lead updates saved.")
+menu = ["Upload Excel", "Scrape Website", "Paste URL (AI)", "View & Edit Leads"]
+elif choice == "Paste URL (AI)":
+    st.subheader("🔗 Analyze a Website via AI")
+    company_url = st.text_input("Paste a startup homepage URL")
+
+    if st.button("Analyze and Add Lead"):
+        with st.spinner("Reading site and asking GPT..."):
+            result = extract_info_from_url(company_url)
+
+        st.code(result)
+
+        # Try to parse result into variables (simple parser)
+        lines = result.split("\n")
+        parsed = {}
+        for line in lines:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                parsed[key.strip().lower()] = value.strip()
+
+        if "company" in parsed:
+            insert_lead((
+                parsed.get("company", ""),
+                company_url,
+                parsed.get("email", ""),
+                "Unknown",
+                parsed.get("summary", ""),
+                parsed.get("growth phase", "").lower(),
+                int(parsed.get("score", "0")),
+                "",
+                ""
+            ))
+            st.success(f"✅ {parsed.get('company')} was added to your leads.")
+        else:
+            st.warning("⚠️ Could not parse response. Please check format.")
+
