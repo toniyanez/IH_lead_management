@@ -1,102 +1,69 @@
 import streamlit as st
-import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+import requests
+from bs4 import BeautifulSoup
+from newspaper import Article
+from openai import OpenAI
 
-from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
-from lead_utils import calculate_score
-from scraper import extract_info_from_url, scrape_leads_from_url  # both options included
+# Secure API key from Streamlit secrets
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-st.set_page_config(page_title="LeadNavigator", layout="wide")
-init_db()
+# ------------------ GPT-powered Website Analyzer ------------------
+def extract_info_from_url(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        text = article.text
 
-st.title("🚀 InnHealthium - LeadNavigator")
+        prompt = f"""
+        You are an assistant analyzing startup websites for potential B2B services.
+        Given the homepage text below, extract:
 
-menu = ["Upload Excel", "Scrape Website", "Paste URL (AI)", "View & Edit Leads"]
-choice = st.sidebar.selectbox("Choose Action", menu)
+        - Company name
+        - Summary of their product or solution
+        - Contact email (if mentioned)
+        - Likely growth phase (choose from: pre-seed, seed, series A, series B, series C, consolidation, expansion)
+        - Score from 0 to 100, estimating fit for InnHealthium (regulatory, funding, digital & AI, and go-to-market support in MedTech, IVD, digital health)
 
-# ---------------------- Upload from Excel ----------------------
-if choice == "Upload Excel":
-    file = st.file_uploader("Upload Excel File", type=["xlsx"])
-    if file:
-        df = pd.read_excel(file)
-        for _, row in df.iterrows():
-            score = calculate_score(row['summary'], row['growth_phase'])
-            data = (
-                row['company'], row['website'], row['email'], row['contact_person'],
-                row['summary'], row['growth_phase'], score, "", ""
-            )
-            insert_lead(data)
-        st.success("✅ Leads uploaded successfully!")
+        Respond in this format (no explanations):
 
-# ---------------------- Web Scraper (optional placeholder) ----------------------
-elif choice == "Scrape Website":
-    url = st.text_input("Enter a URL (requires known structure)")
-    if st.button("Scrape"):
-        leads = scrape_leads_from_url(url)
-        for lead in leads:
-            insert_lead(lead)
-        st.success("✅ Web leads scraped and stored!")
+        Company: ...
+        Summary: ...
+        Email: ...
+        Growth Phase: ...
+        Score: ...
 
-# ---------------------- AI-based URL Analyzer ----------------------
-elif choice == "Paste URL (AI)":
-    st.subheader("🔗 Analyze a Website via AI")
-    company_url = st.text_input("Paste a startup homepage URL")
+        ---
+        {text}
+        """
 
-    if st.button("Analyze and Add Lead"):
-        with st.spinner("Reading site and asking GPT..."):
-            result = extract_info_from_url(company_url)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
 
-        st.code(result)
+        return response.choices[0].message.content
 
-        # Simple parser
-        lines = result.split("\n")
-        parsed = {}
-        for line in lines:
-            if ":" in line:
-                key, value = line.split(":", 1)
-                parsed[key.strip().lower()] = value.strip()
+    except Exception as e:
+        return f"Error extracting info from {url}:\n\n{str(e)}"
 
-        if "company" in parsed:
-            insert_lead((
-                parsed.get("company", ""),
-                company_url,
-                parsed.get("email", ""),
-                "Unknown",
-                parsed.get("summary", ""),
-                parsed.get("growth phase", "").lower(),
-                int(parsed.get("score", "0")),
-                "",
-                ""
-            ))
-            st.success(f"✅ {parsed.get('company')} was added to your leads.")
-        else:
-            st.warning("⚠️ Could not parse response. Please check format or homepage content.")
+# ------------------ Optional: Raw HTML Extractor ------------------
+def scrape_leads_from_url(url):
+    try:
+        r = requests.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        companies = []
 
-# ---------------------- View & Edit Leads ----------------------
-elif choice == "View & Edit Leads":
-    st.subheader("📋 Edit Leads Inline")
-    df = fetch_all_leads_df()
+        for tag in soup.find_all("div", class_="company"):
+            name = tag.find("h2").text
+            website = tag.find("a")['href']
+            email = tag.find("span", class_="email").text
+            summary = tag.find("p").text
+            companies.append((name, website, email, "Unknown", summary, "seed", 50, "", ""))
 
-    gb = GridOptionsBuilder.from_dataframe(df)
-    gb.configure_pagination()
-    gb.configure_default_column(editable=True, groupable=True)
-    gb.configure_column("ID", editable=False)
-    grid_options = gb.build()
-
-    grid_response = AgGrid(
-        df,
-        gridOptions=grid_options,
-        update_mode=GridUpdateMode.MANUAL,
-        height=600,
-        fit_columns_on_grid_load=True,
-        editable=True,
-        key='editable_grid'
-    )
-
-    updated_df = grid_response['data']
-
-    if st.button("💾 Save Changes"):
-        update_leads_bulk(updated_df)
-        st.success("✅ Lead updates saved.")
+        return companies
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        return []
 
 
