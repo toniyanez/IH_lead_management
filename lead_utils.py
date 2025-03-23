@@ -8,9 +8,9 @@ def calculate_score(summary, growth_phase):
     growth_map = {
         "pre-seed": 10,
         "seed": 20,
-        "serie a": 30,
-        "serie b": 40,
-        "serie c": 50,
+        "series a": 30,
+        "series b": 40,
+        "series c": 50,
         "consolidation": 60,
         "expansion": 70
     }
