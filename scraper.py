@@ -1,13 +1,13 @@
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from newspaper import Article
-import openai
-import streamlit as st
+from openai import OpenAI
 
-# Use the OpenAI API Key securely from Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Secure API key from Streamlit secrets
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# 🧠 Option 1: GPT-powered web summarizer
+# ------------------ GPT-powered Website Analyzer ------------------
 def extract_info_from_url(url):
     try:
         article = Article(url)
@@ -23,9 +23,9 @@ def extract_info_from_url(url):
         - Summary of their product or solution
         - Contact email (if mentioned)
         - Likely growth phase (choose from: pre-seed, seed, series A, series B, series C, consolidation, expansion)
-        - Score from 0 to 100, estimating fit for InnHealthium (offering regulatory, funding, digital & AI, and GTM support in MedTech, IVD, diagnostics, digital health).
+        - Score from 0 to 100, estimating fit for InnHealthium (regulatory, funding, digital & AI, and go-to-market support in MedTech, IVD, digital health)
 
-        Format:
+        Respond in this format (no explanations):
 
         Company: ...
         Summary: ...
@@ -37,18 +37,17 @@ def extract_info_from_url(url):
         {text}
         """
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        return response['choices'][0]['message']['content']
+        return response.choices[0].message.content
 
     except Exception as e:
-        return f"Error extracting info from {url}: {str(e)}"
+        return f"Error extracting info from {url}:\n\n{str(e)}"
 
-# 🧪 Option 2: HTML-scraping fallback (very basic)
+# ------------------ Optional: Raw HTML Extractor ------------------
 def scrape_leads_from_url(url):
     try:
         r = requests.get(url)
@@ -61,7 +60,7 @@ def scrape_leads_from_url(url):
             email = tag.find("span", class_="email").text
             summary = tag.find("p").text
             companies.append((name, website, email, "Unknown", summary, "seed", 50, "", ""))
-        
+
         return companies
     except Exception as e:
         print(f"Scraping error: {e}")
