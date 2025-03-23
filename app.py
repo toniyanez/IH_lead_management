@@ -1,35 +1,43 @@
 import streamlit as st
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
 from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
 from lead_utils import calculate_score
 from scraper import extract_info_from_url
 
-# --------------------------------
-# PAGE CONFIG & SIDEBAR MENU
-# --------------------------------
-st.set_page_config(page_title="🎯 LeadNavigator by InnHealthium", layout="wide")
-st.title("🚀 LeadNavigator CRM")
-st.caption("Your AI-powered tool to find, qualify, and track MedTech leads — smarter and faster.")
-
-st.sidebar.image("https://media.giphy.com/media/l0MYB8Ory7Hqefo9a/giphy.gif", width=200)
-menu = ["📤 Upload Leads", "🤖 Paste Website (AI)", "📝 Edit Leads"]
-choice = st.sidebar.radio("What would you like to do?", menu)
-
+# Initialize database
 init_db()
 
-# --------------------------------
-# UPLOAD EXCEL SECTION
-# --------------------------------
-if choice == "📤 Upload Leads":
-    st.subheader("📁 Upload Leads via Excel")
-    st.markdown("Just drag and drop your `.xlsx` file with columns like `company`, `summary`, `email`...")
+# Set page configuration with InnHealthium branding
+st.set_page_config(
+    page_title="LeadNavigator by InnHealthium",
+    page_icon="🧬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-    file = st.file_uploader("Choose your Excel file", type=["xlsx"])
+# Add InnHealthium logo and title
+st.image("innhealthium_logo.png", width=200)
+st.title("LeadNavigator CRM")
+st.caption("Empowering MedTech innovators with AI-driven lead management.")
+
+# Sidebar menu
+st.sidebar.image("innhealthium_logo.png", width=150)
+menu = ["Upload Leads", "Analyze Website (AI)", "View & Edit Leads"]
+choice = st.sidebar.radio("Navigate", menu)
+
+# Define primary color for buttons and accents
+primary_color = "#1A73E8"  # InnHealthium blue
+
+# Upload Leads Section
+if choice == "Upload Leads":
+    st.subheader("📁 Upload Leads via Excel")
+    st.markdown("Upload your `.xlsx` file containing lead information.")
+
+    file = st.file_uploader("Choose an Excel file", type=["xlsx"])
     if file:
         df = pd.read_excel(file)
-        st.success("✅ File loaded successfully!")
+        st.success("File loaded successfully!")
 
         for _, row in df.iterrows():
             score = calculate_score(row['summary'], row['growth_phase'])
@@ -40,19 +48,17 @@ if choice == "📤 Upload Leads":
             insert_lead(data)
 
         st.balloons()
-        st.success("🎉 Leads imported and scored!")
+        st.success("Leads imported and scored!")
 
-# --------------------------------
-# GPT-POWERED WEBSITE ANALYZER
-# --------------------------------
-elif choice == "🤖 Paste Website (AI)":
-    st.subheader("🌐 Paste a Startup Homepage")
-    st.markdown("Let AI do the work. We'll read the homepage and auto-extract key info and score it 🔍")
+# Analyze Website (AI) Section
+elif choice == "Analyze Website (AI)":
+    st.subheader("🌐 Analyze a Startup Website")
+    st.markdown("Let AI extract key information and score the lead.")
 
-    company_url = st.text_input("Paste a company URL (e.g. https://neuroai.tech)")
+    company_url = st.text_input("Enter the company's website URL")
 
-    if st.button("🧠 Analyze with AI"):
-        with st.spinner("Reading, thinking, and scoring..."):
+    if st.button("Analyze", key="analyze_button"):
+        with st.spinner("Analyzing the website..."):
             result = extract_info_from_url(company_url)
 
         st.code(result)
@@ -75,16 +81,14 @@ elif choice == "🤖 Paste Website (AI)":
                 "",
                 ""
             ))
-            st.success(f"🎯 {parsed.get('company')} added to your leads!")
+            st.success(f"{parsed.get('company')} added to your leads!")
         else:
-            st.warning("🤔 GPT response couldn't be parsed correctly.")
+            st.warning("Could not parse the AI response.")
 
-# --------------------------------
-# VIEW & EDIT LEADS SECTION
-# --------------------------------
-elif choice == "📝 Edit Leads":
-    st.subheader("🛠 Edit Your Lead Database")
-    st.markdown("Click any cell to edit. Don’t forget to hit **Save Changes**! 💾")
+# View & Edit Leads Section
+elif choice == "View & Edit Leads":
+    st.subheader("🛠 View & Edit Leads")
+    st.markdown("Edit your leads directly in the table below.")
 
     df = fetch_all_leads_df()
 
@@ -100,17 +104,16 @@ elif choice == "📝 Edit Leads":
         update_mode=GridUpdateMode.MANUAL,
         editable=True,
         height=600,
-        theme="material",
+        theme="blue",  # Matching InnHealthium's color scheme
         key="editable_grid"
     )
 
     updated_df = grid_response["data"]
-    if st.button("💾 Save Changes"):
+    if st.button("Save Changes", key="save_button"):
         update_leads_bulk(updated_df)
-        st.success("✅ All changes saved!")
+        st.success("Changes saved successfully!")
 
-# --------------------------------
-# FOOTER
-# --------------------------------
+# Footer
 st.markdown("---")
-st.caption("🧬 Built by **InnHealthium** – accelerating MedTech, IVD & Diagnostics innovation 🚀")
+st.caption("© 2025 InnHealthium | Transforming healthcare innovation.")
+
