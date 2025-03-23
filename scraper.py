@@ -5,7 +5,7 @@ from openai import OpenAI
 
 # HARDCODED project-scoped API key (⚠️ for private use only)
 client = OpenAI(
-    api_key="sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    api_key="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",
     project="proj_7EqGQg2RKl5FeRaNsYxzC2w"
 )
 
