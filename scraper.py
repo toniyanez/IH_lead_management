@@ -1,33 +1,27 @@
-import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from newspaper import Article
 from openai import OpenAI
 
-# -------------------------------------------------
-# ✅ Securely load credentials from secrets.toml
-# -------------------------------------------------
-api_key = st.secrets["OPENAI_API_KEY"]
-project_id = st.secrets["OPENAI_PROJECT_ID"]
-
-# Create OpenAI client (project-aware)
+# ----------------------------------------
+# 🛠️ API key hardcoded (use with caution)
+# ----------------------------------------
 client = OpenAI(
-    api_key=api_key,
-    project=project_id
+    api_key="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",  # Replace with your key
+    project="proj_7EqGQg2RKl5FeRaNsYxzC2w"              # Replace with your project ID if using sk-proj
 )
 
-# -------------------------------------------------
-# 🔍 GPT-Powered Company Info Extractor from URL
-# -------------------------------------------------
+# ----------------------------------------
+# GPT-powered Company Info Extractor
+# ----------------------------------------
 def extract_info_from_url(url):
     try:
-        # Step 1: Scrape visible article/text from page
+        # Extract text content from the page
         article = Article(url)
         article.download()
         article.parse()
         text = article.text
 
-        # Step 2: Construct GPT prompt
         prompt = f"""
         You are an assistant analyzing startup websites for potential B2B services.
         Given the homepage text below, extract:
@@ -50,7 +44,6 @@ def extract_info_from_url(url):
         {text}
         """
 
-        # Step 3: Call GPT using chat endpoint
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
@@ -61,10 +54,9 @@ def extract_info_from_url(url):
     except Exception as e:
         return f"❌ Error extracting info from {url}:\n\n{str(e)}"
 
-# -------------------------------------------------
-# 🌐 Optional: HTML-based fixed pattern scraper
-# Works only with known HTML structure
-# -------------------------------------------------
+# ----------------------------------------
+# Optional HTML scraper for known page layouts
+# ----------------------------------------
 def scrape_leads_from_url(url):
     try:
         r = requests.get(url)
@@ -82,4 +74,3 @@ def scrape_leads_from_url(url):
     except Exception as e:
         print(f"Scraping error: {e}")
         return []
-
