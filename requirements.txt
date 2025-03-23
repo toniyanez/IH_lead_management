@@ -4,3 +4,5 @@ openpyxl
 beautifulsoup4
 requests
 streamlit-aggrid
+openai
+newspaper3k
