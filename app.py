@@ -4,7 +4,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
 from lead_utils import calculate_score
-from scraper import extract_info_from_url, scrape_leads_from_url  # both options included
+from scraper import extract_info_from_url, scrape_leads_from_url
 
 st.set_page_config(page_title="LeadNavigator", layout="wide")
 init_db()
@@ -28,27 +28,27 @@ if choice == "Upload Excel":
             insert_lead(data)
         st.success("✅ Leads uploaded successfully!")
 
-# ---------------------- Web Scraper (optional placeholder) ----------------------
+# ---------------------- Basic Scraper (optional) ----------------------
 elif choice == "Scrape Website":
-    url = st.text_input("Enter a URL (requires known structure)")
+    url = st.text_input("Enter a URL (for known structure pages)")
     if st.button("Scrape"):
         leads = scrape_leads_from_url(url)
         for lead in leads:
             insert_lead(lead)
         st.success("✅ Web leads scraped and stored!")
 
-# ---------------------- AI-based URL Analyzer ----------------------
+# ---------------------- GPT-Powered Analyzer ----------------------
 elif choice == "Paste URL (AI)":
-    st.subheader("🔗 Analyze a Website via AI")
+    st.subheader("🔗 Analyze a Website via GPT")
     company_url = st.text_input("Paste a startup homepage URL")
 
     if st.button("Analyze and Add Lead"):
-        with st.spinner("Reading site and asking GPT..."):
+        with st.spinner("Analyzing site using GPT..."):
             result = extract_info_from_url(company_url)
 
         st.code(result)
 
-        # Simple parser
+        # Parse GPT response
         lines = result.split("\n")
         parsed = {}
         for line in lines:
@@ -70,9 +70,9 @@ elif choice == "Paste URL (AI)":
             ))
             st.success(f"✅ {parsed.get('company')} was added to your leads.")
         else:
-            st.warning("⚠️ Could not parse response. Please check format or homepage content.")
+            st.warning("⚠️ Could not parse GPT response.")
 
-# ---------------------- View & Edit Leads ----------------------
+# ---------------------- View & Edit ----------------------
 elif choice == "View & Edit Leads":
     st.subheader("📋 Edit Leads Inline")
     df = fetch_all_leads_df()
