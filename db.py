@@ -3,8 +3,7 @@ import pandas as pd
 
 def init_db():
     conn = sqlite3.connect('leads.db')
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS leads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company TEXT,
@@ -23,8 +22,7 @@ def init_db():
 
 def insert_lead(data):
     conn = sqlite3.connect('leads.db')
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn.execute('''
         INSERT INTO leads (company, website, email, contact_person, summary, growth_phase, score, next_action, comments)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', data)
@@ -52,4 +50,5 @@ def update_leads_bulk(df):
         ))
     conn.commit()
     conn.close()
+
 
