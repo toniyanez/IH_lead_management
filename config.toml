@@ -1,4 +1,5 @@
-[server]
-headless = true
-port = 8501
-enableCORS = false
+[theme]
+primaryColor = "#1A73E8"  # InnHealthium blue
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F3F4"
+textColor = "#202124"
