@@ -4,30 +4,38 @@ from bs4 import BeautifulSoup
 from newspaper import Article
 from openai import OpenAI
 
-# -------------------------------------------
-# Securely get API credentials from secrets
-# -------------------------------------------
-api_key = st.secrets["OPENAI_API_KEY"]
-project_id = st.secrets["OPENAI_PROJECT_ID"]
+# ----------------------------------------
+# Configure OpenAI Client
+# Supports classic key or project-scoped key
+# ----------------------------------------
 
-# Initialize OpenAI client with project-scoped key
+# Required: OPENAI_API_KEY in Streamlit secrets
+api_key = st.secrets["OPENAI_API_KEY"]
+
+# Optional: support org or project ID for sk-proj keys
+org_id = st.secrets.get("OPENAI_ORG_ID", None)
+project_id = st.secrets.get("OPENAI_PROJECT_ID", None)
+
+# Initialize OpenAI client
 client = OpenAI(
     api_key=api_key,
-    project=project_id
+    organization=org_id,     # use if provided
+    project=project_id       # use if using sk-proj key
 )
 
-# -------------------------------------------
-# GPT-powered company info extractor
-# -------------------------------------------
+# ----------------------------------------
+# GPT-powered Website Info Extractor
+# ----------------------------------------
+
 def extract_info_from_url(url):
     try:
-        # Step 1: Scrape main article text from the page
+        # Step 1: Download and extract article text from homepage
         article = Article(url)
         article.download()
         article.parse()
         text = article.text
 
-        # Step 2: Ask GPT to analyze and extract structured info
+        # Step 2: Ask GPT to extract lead information
         prompt = f"""
         You are an assistant analyzing startup websites for potential B2B services.
         Given the homepage text below, extract:
@@ -60,10 +68,11 @@ def extract_info_from_url(url):
     except Exception as e:
         return f"❌ Error extracting info from {url}:\n\n{str(e)}"
 
-# -------------------------------------------
-# (Optional) HTML-based lead extractor
-# Only works on known HTML structure
-# -------------------------------------------
+# ----------------------------------------
+# Optional: HTML Pattern-Based Lead Extractor
+# Only works with known HTML structure
+# ----------------------------------------
+
 def scrape_leads_from_url(url):
     try:
         r = requests.get(url)
