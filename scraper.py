@@ -4,17 +4,30 @@ from bs4 import BeautifulSoup
 from newspaper import Article
 from openai import OpenAI
 
-# Secure API key from Streamlit secrets
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# -------------------------------------------
+# Securely get API credentials from secrets
+# -------------------------------------------
+api_key = st.secrets["OPENAI_API_KEY"]
+project_id = st.secrets["OPENAI_PROJECT_ID"]
 
-# ------------------ GPT-powered Website Analyzer ------------------
+# Initialize OpenAI client with project-scoped key
+client = OpenAI(
+    api_key=api_key,
+    project=project_id
+)
+
+# -------------------------------------------
+# GPT-powered company info extractor
+# -------------------------------------------
 def extract_info_from_url(url):
     try:
+        # Step 1: Scrape main article text from the page
         article = Article(url)
         article.download()
         article.parse()
         text = article.text
 
+        # Step 2: Ask GPT to analyze and extract structured info
         prompt = f"""
         You are an assistant analyzing startup websites for potential B2B services.
         Given the homepage text below, extract:
@@ -45,9 +58,12 @@ def extract_info_from_url(url):
         return response.choices[0].message.content
 
     except Exception as e:
-        return f"Error extracting info from {url}:\n\n{str(e)}"
+        return f"❌ Error extracting info from {url}:\n\n{str(e)}"
 
-# ------------------ Optional: Raw HTML Extractor ------------------
+# -------------------------------------------
+# (Optional) HTML-based lead extractor
+# Only works on known HTML structure
+# -------------------------------------------
 def scrape_leads_from_url(url):
     try:
         r = requests.get(url)
@@ -65,3 +81,4 @@ def scrape_leads_from_url(url):
     except Exception as e:
         print(f"Scraping error: {e}")
         return []
+
