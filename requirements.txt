@@ -4,5 +4,3 @@ openpyxl
 beautifulsoup4
 requests
 streamlit-aggrid
-psycopg2-binary
-SQLAlchemy
