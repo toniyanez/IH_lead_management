@@ -1,8 +1,8 @@
 streamlit
 pandas
 openpyxl
-beautifulsoup4
 requests
-streamlit-aggrid
+beautifulsoup4
 newspaper3k
+streamlit-aggrid
 openai>=1.0.0
