@@ -1,92 +1,99 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
-from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
-from lead_utils import calculate_score
+from io import BytesIO
 from scraper import extract_info_from_url
+from db import init_db, insert_lead, fetch_all_leads_df, update_leads_bulk
 
-# Set up page
-st.set_page_config(
-    page_title="LeadNavigator by InnHealthium",
-    page_icon="🧬",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
+# Initialize Database
 init_db()
 
-# Branding & title
-st.image("innhealthium_logo.png", width=200)
-st.title("🚀 LeadNavigator CRM")
-st.caption("Empowering MedTech innovation with AI-powered lead management.")
+# Set Page Configuration
+st.set_page_config(page_title="LeadNavigator CRM", layout="wide")
 
-# Sidebar
-st.sidebar.image("innhealthium_logo.png", width=150)
-menu = ["📤 Upload Leads", "🤖 Paste Website (AI)", "📝 Edit Leads"]
-choice = st.sidebar.radio("Navigate", menu)
+# Sidebar Navigation
+st.sidebar.title("Navigation")
+menu = ["Dashboard", "Upload Leads", "Add Lead Manually", "Edit Leads"]
+choice = st.sidebar.radio("Go to", menu)
+
+# Dashboard
+if choice == "Dashboard":
+    st.title("📊 Lead Dashboard")
+    df = fetch_all_leads_df()
+
+    # Display Summary Metrics
+    total_leads = len(df)
+    avg_score = df['Score'].mean()
+    st.metric("Total Leads", total_leads)
+    st.metric("Average Fit Score", f"{avg_score:.2f}")
+
+    # Plot Growth Phase Distribution
+    fig, ax = plt.subplots()
+    df['Growth Phase'].value_counts().plot(kind='bar', ax=ax)
+    ax.set_title("Growth Phase Distribution")
+    ax.set_xlabel("Growth Phase")
+    ax.set_ylabel("Number of Leads")
+    st.pyplot(fig)
+
+    # Display Data Table
+    st.subheader("Lead Details")
+    AgGrid(df)
 
 # Upload Leads
-if choice == "📤 Upload Leads":
-    st.subheader("📁 Upload Excel Leads")
-    st.markdown("Upload your `.xlsx` file with columns like `company`, `summary`, `email`, etc.")
-
-    file = st.file_uploader("Upload Excel File", type=["xlsx"])
+elif choice == "Upload Leads":
+    st.title("📥 Upload Leads from Excel")
+    file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if file:
         df = pd.read_excel(file)
         for _, row in df.iterrows():
-            score = calculate_score(row['summary'], row['growth_phase'])
             data = (
-                row['company'], row['website'], row['email'], row['contact_person'],
-                row['summary'], row['growth_phase'], score, "", ""
+                row['Company'], row['Website'], row['Email'], row['Contact Person'],
+                row['Summary'], row['Growth Phase'], row['Score'], row['Comments'], row['Next Action']
             )
             insert_lead(data)
-        st.balloons()
-        st.success("✅ Leads uploaded and scored!")
+        st.success("Leads successfully uploaded!")
 
-# Paste URL (AI)
-elif choice == "🤖 Paste Website (AI)":
-    st.subheader("🌐 Analyze Startup Website via AI")
-    st.markdown("Let AI extract company info & score it.")
+# Add Lead Manually
+elif choice == "Add Lead Manually":
+    st.title("➕ Add Lead Manually")
+    with st.form(key='manual_lead_form'):
+        company = st.text_input("Company Name")
+        website = st.text_input("Website URL")
+        email = st.text_input("Contact Email")
+        contact_person = st.text_input("Contact Person")
+        summary = st.text_area("Company Summary")
+        growth_phase = st.selectbox("Growth Phase", ["Pre-seed", "Seed", "Series A", "Series B", "Series C", "Consolidation", "Expansion"])
+        score = st.slider("Fit Score", 0, 100, 50)
+        comments = st.text_area("Comments")
+        next_action = st.text_input("Next Action")
+        auto_fill = st.checkbox("Auto-fill using company website")
+        submit_button = st.form_submit_button(label='Add Lead')
 
-    company_url = st.text_input("Paste a startup homepage URL")
-    if st.button("🧠 Analyze with GPT"):
-        with st.spinner("AI is reading the site..."):
-            result = extract_info_from_url(company_url)
+    if submit_button:
+        if auto_fill and website:
+            with st.spinner("Extracting information from website..."):
+                ai_data = extract_info_from_url(website)
+                if ai_data:
+                    company = ai_data.get('Company', company)
+                    summary = ai_data.get('Summary', summary)
+                    email = ai_data.get('Email', email)
+                    growth_phase = ai_data.get('Growth Phase', growth_phase)
+                    score = ai_data.get('Score', score)
+                    comments = ai_data.get('Comments', comments)
+        data = (company, website, email, contact_person, summary, growth_phase, score, comments, next_action)
+        insert_lead(data)
+        st.success(f"Lead for {company} added successfully!")
 
-        st.code(result)
-
-        parsed = {}
-        for line in result.split("\n"):
-            if ":" in line:
-                key, value = line.split(":", 1)
-                parsed[key.strip().lower()] = value.strip()
-
-        if "company" in parsed:
-            insert_lead((
-                parsed.get("company", ""),
-                company_url,
-                parsed.get("email", ""),
-                "Unknown",
-                parsed.get("summary", ""),
-                parsed.get("growth phase", "").lower(),
-                int(parsed.get("score", "0")),
-                "",
-                ""
-            ))
-            st.success(f"🎯 {parsed.get('company')} added to your leads!")
-        else:
-            st.warning("🤔 GPT response couldn't be parsed properly.")
-
-# View & Edit
-elif choice == "📝 Edit Leads":
-    st.subheader("🛠 Manage Your Lead Database")
+# Edit Leads
+elif choice == "Edit Leads":
+    st.title("📝 Edit Leads")
     df = fetch_all_leads_df()
 
+    # Editable Data Table
     gb = GridOptionsBuilder.from_dataframe(df)
     gb.configure_pagination()
     gb.configure_default_column(editable=True)
-    gb.configure_column("ID", editable=False)
     grid_options = gb.build()
 
     grid_response = AgGrid(
@@ -94,16 +101,27 @@ elif choice == "📝 Edit Leads":
         gridOptions=grid_options,
         update_mode=GridUpdateMode.MANUAL,
         editable=True,
-        theme="material",
         height=600,
-        key="editable_grid"
+        theme="material"
     )
 
-    updated_df = grid_response["data"]
-    if st.button("💾 Save Changes"):
+    updated_df = grid_response['data']
+
+    if st.button("Save Changes"):
         update_leads_bulk(updated_df)
-        st.success("✅ Changes saved!")
+        st.success("Changes saved successfully!")
+
+    # Excel Export
+    towrite = BytesIO()
+    downloaded_file = updated_df.to_excel(towrite, encoding='utf-8', index=False, header=True)
+    towrite.seek(0)
+    st.download_button(
+        label="Download data as Excel",
+        data=towrite,
+        file_name='leads_data.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
 
 # Footer
-st.markdown("---")
-st.caption("Made with ❤️ by InnHealthium | Accelerating MedTech, IVD & Diagnostics innovation 🚀")
+st.sidebar.markdown("---")
+st.sidebar.write("Built with 💙 by InnHealthium")
