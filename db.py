@@ -35,7 +35,8 @@ def fetch_all_leads_df():
     conn = sqlite3.connect('leads.db')
     df = pd.read_sql_query("SELECT * FROM leads", conn)
     conn.close()
-    df.columns = [col.strip().title() for col in df.columns]  # normalize capitalization
+    # Normalize column names to lowercase and underscore
+    df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
     return df
 
 def update_leads_bulk(df):
@@ -47,11 +48,12 @@ def update_leads_bulk(df):
             SET company=?, website=?, email=?, contact_person=?, summary=?, growth_phase=?, score=?, comments=?, next_action=?
             WHERE id=?
         ''', (
-            row['Company'], row['Website'], row['Email'], row['Contact_Person'],
-            row['Summary'], row['Growth_Phase'], int(row['Score']),
-            row['Comments'], row['Next_Action'], int(row['Id'])
+            row['company'], row['website'], row['email'], row['contact_person'],
+            row['summary'], row['growth_phase'], int(row['score']),
+            row['comments'], row['next_action'], int(row['id'])
         ))
     conn.commit()
     conn.close()
+
 
 
