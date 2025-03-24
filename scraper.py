@@ -8,7 +8,7 @@ from openai import OpenAI
 # ✅ HARDCODED OpenAI Project Credentials
 # Only use for private or local development
 # ----------------------------------------
-API_KEY = "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"
+API_KEY = "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"
 PROJECT_ID = "proj_7EqGQg2RKl5FeRaNsYxzC2wI"
 
 # Initialize OpenAI client with project-aware setup
