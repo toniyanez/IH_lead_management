@@ -17,74 +17,82 @@ client = OpenAI(
 )
 
 # ----------------------------------------
-# 🌐 AI-POWERED WEBSITE ANALYZER FUNCTION
+# 🌐 Enhanced AI-Powered Website Scraper
 # ----------------------------------------
 
 def extract_info_from_url(url):
     try:
-        # Step 1: Extract readable text content from URL
+        # 1. Try newspaper3k article parsing
         article = Article(url)
         article.download()
         article.parse()
-        text = article.text.strip()
+        main_text = article.text.strip()
 
-        if not text:
-            return f"❌ No readable text found at {url}"
+        # 2. Fallback scrape: Get title, meta, H1s, and body text
+        extra_content = ""
+        try:
+            response = requests.get(url, timeout=10)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            title = soup.title.string if soup.title else ""
+            metas = " ".join([meta.get("content", "") for meta in soup.find_all("meta")])
+            h1s = " ".join([h.get_text() for h in soup.find_all("h1")])
+            paragraphs = " ".join([p.get_text() for p in soup.find_all("p")[:10]])
+            extra_content = f"{title}\n{metas}\n{h1s}\n{paragraphs}"
+        except Exception:
+            pass
 
-        # Step 2: Build GPT prompt for structured output
+        # Combine everything
+        content = f"{main_text}\n\n{extra_content}"
+
+        # GPT Prompt
         prompt = f"""
-        You are an assistant analyzing startup websites for potential B2B services.
-        Given the homepage text below, extract:
+        You are an assistant analyzing MedTech, IVD, or HealthTech startup websites.
+        Given the homepage content below, extract:
 
         - Company name
-        - Summary of their product or solution
-        - Contact email (if mentioned)
-        - Likely growth phase (choose from: pre-seed, seed, series A, series B, series C, consolidation, expansion)
-        - Score from 0 to 100, estimating fit for InnHealthium (we help with regulatory, funding, AI, GTM for MedTech, IVD, and diagnostics)
+        - Summary of product or solution
+        - Contact email (if found)
+        - Growth Phase (pre-seed, seed, series A, B, C, consolidation, expansion)
+        - Score from 0-100 (fit for InnHealthium: funding, regulatory, GTM, AI)
+        - A brief summary to add as a CRM comment (1-2 sentences)
 
-        Respond in this exact format (no commentary):
-
+        Format:
         Company: ...
         Summary: ...
         Email: ...
         Growth Phase: ...
         Score: ...
+        Comments: ...
 
         ---
-        {text}
+        {content}
         """
 
-        # Step 3: Send to GPT
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.5
         )
 
-        return response.choices[0].message.content
+        output = response.choices[0].message.content.strip()
+
+        # Convert to dictionary
+        result = {}
+        for line in output.split("\n"):
+            if ":" in line:
+                key, value = line.split(":", 1)
+                result[key.strip().lower()] = value.strip()
+
+        return {
+            "company": result.get("company", ""),
+            "summary": result.get("summary", ""),
+            "email": result.get("email", ""),
+            "growth_phase": result.get("growth phase", "").lower(),
+            "score": int(result.get("score", "0")),
+            "comments": result.get("comments", "")
+        }
 
     except Exception as e:
-        return f"❌ Error extracting info from {url}:\n\n{str(e)}"
-
-# ----------------------------------------
-# 🔧 OPTIONAL BASIC HTML SCRAPER (fallback)
-# Only use for very structured HTML pages
-# ----------------------------------------
-
-def scrape_leads_from_url(url):
-    try:
-        r = requests.get(url)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        companies = []
-
-        for tag in soup.find_all("div", class_="company"):
-            name = tag.find("h2").text
-            website = tag.find("a")['href']
-            email = tag.find("span", class_="email").text
-            summary = tag.find("p").text
-            companies.append((name, website, email, "Unknown", summary, "seed", 50, "", ""))
-
-        return companies
-    except Exception as e:
-        print(f"Scraping error: {e}")
-        return []
+        return {
+            "error": f"❌ Error extracting info from {url}: {str(e)}"
+        }
