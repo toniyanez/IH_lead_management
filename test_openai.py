@@ -1,8 +1,8 @@
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-proj-xxxxxxxxxxxxxxxxxxxx",
-    project="proj_xxxxxxxxxxxxxxxxxxx"
+    api_key="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",
+    project="proj_7EqGQg2RKl5FeRaNsYxzC2w"
 )
 
 response = client.chat.completions.create(
