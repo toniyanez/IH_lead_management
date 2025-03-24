@@ -4,6 +4,7 @@ from newspaper import Article
 from openai import OpenAI
 
 # ----------------------------------------
+# ----------------------------------------
 # ✅ HARDCODED OpenAI Project Credentials
 # Only use for private or local development
 # ----------------------------------------
