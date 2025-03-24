@@ -6,3 +6,4 @@ beautifulsoup4
 newspaper3k
 streamlit-aggrid
 openai>=1.0.0
+matplotlib
