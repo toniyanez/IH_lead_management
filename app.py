@@ -10,7 +10,6 @@ init_db()
 
 st.set_page_config(page_title="LeadNavigator CRM", layout="wide")
 
-# Sidebar Navigation
 st.sidebar.title("Navigation")
 menu = ["Dashboard", "Upload Leads", "Add Lead Manually", "Edit Leads"]
 choice = st.sidebar.radio("Go to", menu)
@@ -23,17 +22,23 @@ if choice == "Dashboard":
     if df.empty:
         st.warning("No leads available.")
     else:
-        total_leads = len(df)
-        avg_score = df['Score'].mean()
-        st.metric("Total Leads", total_leads)
-        st.metric("Average Fit Score", f"{avg_score:.2f}")
+        st.write("🧾 Columns:", df.columns.tolist())
 
-        fig, ax = plt.subplots()
-        df['Growth_Phase'].value_counts().plot(kind='bar', ax=ax)
-        ax.set_title("Growth Phase Distribution")
-        ax.set_xlabel("Growth Phase")
-        ax.set_ylabel("Number of Leads")
-        st.pyplot(fig)
+        if 'score' in df.columns:
+            avg_score = df['score'].mean()
+            st.metric("Average Fit Score", f"{avg_score:.2f}")
+        else:
+            st.warning("⚠️ 'score' column not found.")
+
+        if 'growth_phase' in df.columns:
+            fig, ax = plt.subplots()
+            df['growth_phase'].value_counts().plot(kind='bar', ax=ax)
+            ax.set_title("Growth Phase Distribution")
+            ax.set_xlabel("Growth Phase")
+            ax.set_ylabel("Leads")
+            st.pyplot(fig)
+        else:
+            st.warning("⚠️ 'growth_phase' column not found.")
 
         st.subheader("Lead Details")
         AgGrid(df)
@@ -44,10 +49,12 @@ elif choice == "Upload Leads":
     file = st.file_uploader("Upload your Excel file", type=["xlsx"])
     if file:
         df = pd.read_excel(file)
+        df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
         for _, row in df.iterrows():
             data = (
-                row['Company'], row['Website'], row['Email'], row['Contact_Person'],
-                row['Summary'], row['Growth_Phase'], row['Score'], row.get('Comments', ""), row.get('Next_Action', "")
+                row['company'], row['website'], row['email'], row['contact_person'],
+                row['summary'], row['growth_phase'], row['score'],
+                row.get('comments', ""), row.get('next_action', "")
             )
             insert_lead(data)
         st.success("Leads successfully uploaded!")
@@ -61,7 +68,7 @@ elif choice == "Add Lead Manually":
         email = st.text_input("Contact Email")
         contact_person = st.text_input("Contact Person")
         summary = st.text_area("Company Summary")
-        growth_phase = st.selectbox("Growth Phase", ["Pre-seed", "Seed", "Series A", "Series B", "Series C", "Consolidation", "Expansion"])
+        growth_phase = st.selectbox("Growth Phase", ["pre-seed", "seed", "series a", "series b", "series c", "consolidation", "expansion"])
         score = st.slider("Fit Score", 0, 100, 50)
         comments = st.text_area("Comments")
         next_action = st.text_input("Next Action")
@@ -112,4 +119,16 @@ elif choice == "Edit Leads":
 
     # Excel Export
     towrite = BytesIO()
-    downloaded_file = updated_df.to_excel(towrite
+    updated_df.to_excel(towrite, index=False, header=True)
+    towrite.seek(0)
+    st.download_button(
+        label="📤 Download Excel",
+        data=towrite,
+        file_name='leads_export.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.write("Built with 💙 by InnHealthium")
+
